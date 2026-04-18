@@ -1,0 +1,172 @@
+artifacts:
+  PipelineIntent:
+    name: checkout-api-observability-pipeline
+    purpose: Normalize checkout-api telemetry for incident response and SLO analysis.
+    role: reliability-critical
+    owners:
+      service: checkout-api
+      platform: observability-platform
+    environments:
+      - production
+    signals:
+      - logs
+      - metrics
+      - traces
+    consumers:
+      - incident-response
+      - slo-analysis
+    constraints:
+      tool_agnostic: true
+      implementation_product_names_allowed: false
+    rollback:
+      strategy: revert-to-previous-pipeline-version
+      max_time: 15m
+
+  SignalContract:
+    logs:
+      required_fields:
+        - timestamp
+        - service.name
+        - deployment.environment
+        - severity
+        - message
+        - trace.id
+        - pipeline.version
+      timestamp_source: application_event_time_preferred
+      freshness_expectation: under 2m during normal operation
+      correlation_keys:
+        - trace.id
+        - span.id
+        - request.id
+      cardinality_limits:
+        service.name: bounded-service-registry
+        deployment.environment: bounded-environment-list
+        request.id: event-only
+      sensitivity:
+        default: internal
+        redacted_fields:
+          - request.headers.authorization
+          - payment.card.number
+      provenance:
+        fields:
+          - pipeline.version
+          - pipeline.stage
+          - pipeline.source
+      malformed_behavior:
+        action: quarantine
+        reason: preserve evidence without polluting primary stores
+
+  PipelineTopology:
+    sources:
+      app_runtime_logs:
+        signal: logs
+        owner: checkout-api
+        expected_volume: 2500 events/min
+    transforms:
+      normalize_common_fields:
+        input: app_runtime_logs
+        output: normalized_logs
+      redact_sensitive_fields:
+        input: normalized_logs
+        output: redacted_logs
+    routes:
+      reliability_logs:
+        input: redacted_logs
+        match: severity in ["error", "warn"] or has(trace.id)
+      quarantine:
+        input: redacted_logs
+        match: schema.valid == false
+    buffers:
+      reliability_delivery_buffer:
+        input: reliability_logs
+        type: durable
+    sinks:
+      reliability_store:
+        input: reliability_delivery_buffer
+      quarantine_store:
+        input: quarantine
+
+  TransformContract:
+    normalize_common_fields:
+      input_contract: app_runtime_logs
+      output_contract: normalized_logs
+      behavior:
+        - preserve message
+        - normalize service.name to checkout-api
+        - preserve trace.id when present
+        - add pipeline.version and pipeline.stage
+      failure_behavior:
+        malformed_input: quarantine
+        missing_trace_id: continue
+    redact_sensitive_fields:
+      input_contract: normalized_logs
+      output_contract: redacted_logs
+      behavior:
+        - remove payment.card.number
+        - replace request.headers.authorization with redacted marker
+      failure_behavior:
+        malformed_input: quarantine
+        missing_field: continue
+
+  RouteContract:
+    reliability_logs:
+      match: severity in ["error", "warn"] or has(trace.id)
+      unmatched_behavior: continue-to-noncritical-route
+    quarantine:
+      match: schema.valid == false
+      unmatched_behavior: retain-for-review
+
+  BufferDeliveryPolicy:
+    reliability_delivery_buffer:
+      delivery_guarantee: at-least-once
+      capacity: 30m of peak production traffic
+      saturation_behavior: apply-backpressure-before-dropping
+      retry:
+        timeout: 10s
+        backoff: exponential
+        max_elapsed: 20m
+      ordering: not guaranteed
+      deduplication: downstream idempotency key is event.id
+      replay: supported for retained buffer window
+
+  SelfObservabilityPlan:
+    signals:
+      - pipeline.records.received
+      - pipeline.records.emitted
+      - pipeline.records.dropped
+      - pipeline.records.quarantined
+      - pipeline.delivery.errors
+      - pipeline.buffer.occupancy
+      - pipeline.buffer.oldest_item_age
+      - pipeline.freshness.lag
+      - pipeline.config.version
+    dashboards:
+      - incident pipeline trust dashboard scoped by service, environment, source, and sink
+    alert_handoff:
+      skill: observability-engineering
+      reason: paging and dashboard intent belong to parent observability model
+
+  ValidationPlan:
+    checks:
+      - static syntax or schema validation
+      - source-to-sink topology review
+      - transform tests with representative samples
+      - malformed input quarantine test
+      - sensitivity redaction test
+      - sink unavailable failure test
+      - buffer saturation failure test
+      - self-observability signal presence
+    evidence:
+      target: checkout-api production observability pipeline contract
+      command: ./scripts/run-exercise.sh
+      output_path: reports/skill-exercise-report.md
+      rollback_path: revert-to-previous-pipeline-version
+
+  GeneratedArtifactManifest:
+    generated_outputs:
+      - neutral pipeline contract
+      - implementation artifact request
+      - validation evidence record
+    generation_gaps:
+      - choose target implementation before emitting concrete config
+      - verify target implementation can enforce redaction and delivery policy

@@ -6,6 +6,10 @@ test -f skill/creating-observability-pipelines/agents/openai.yaml
 test -f skill/creating-observability-pipelines/references/tool-agnostic-concepts.md
 test -f skill/creating-observability-pipelines/references/pipeline-contract.md
 test -f examples/tool-agnostic-pipeline.intent.yaml
+test -f tests/scenarios/checkout-pipeline.prompt.md
+test -f tests/scenarios/checkout-pipeline.expected.yaml
+test -f tests/scenarios/checkout-pipeline.actual.yaml
+test -x scripts/run-exercise.sh
 
 ruby - <<'RUBY'
 require "yaml"
@@ -23,6 +27,8 @@ raise "description missing trigger" unless skill["description"].include?("Use wh
 
 YAML.safe_load(File.read("skill/creating-observability-pipelines/agents/openai.yaml"))
 YAML.safe_load(File.read("examples/tool-agnostic-pipeline.intent.yaml"))
+YAML.safe_load(File.read("tests/scenarios/checkout-pipeline.expected.yaml"))
+YAML.safe_load(File.read("tests/scenarios/checkout-pipeline.actual.yaml"))
 
 puts "yaml parses"
 RUBY
@@ -34,5 +40,7 @@ grep -qi 'tool-agnostic' README.md
 grep -qi 'tool-agnostic' skill/creating-observability-pipelines/references/tool-agnostic-concepts.md
 grep -q 'PipelineIntent' skill/creating-observability-pipelines/references/pipeline-contract.md
 grep -q 'rollback_path' skill/creating-observability-pipelines/references/pipeline-contract.md
+
+./scripts/run-exercise.sh
 
 echo "validation ok"

@@ -37,3 +37,18 @@ Restart the agent runtime after installation so the new skill metadata is loaded
 ```bash
 ./scripts/validate.sh
 ```
+
+## Exercise
+
+The repository includes a skill exercise for a checkout service pipeline:
+
+- source prompt: `tests/scenarios/checkout-pipeline.prompt.md`
+- expected artifact contract: `tests/scenarios/checkout-pipeline.expected.yaml`
+- actual artifact result: `tests/scenarios/checkout-pipeline.actual.yaml`
+- runner: `./scripts/run-exercise.sh`
+
+Run the exercise directly:
+
+```bash
+./scripts/run-exercise.sh
+```

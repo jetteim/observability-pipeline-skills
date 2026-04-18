@@ -1,0 +1,120 @@
+source_prompt: tests/scenarios/checkout-pipeline.prompt.md
+expected_artifacts:
+  - PipelineIntent
+  - SignalContract
+  - PipelineTopology
+  - TransformContract
+  - RouteContract
+  - BufferDeliveryPolicy
+  - SelfObservabilityPlan
+  - ValidationPlan
+  - GeneratedArtifactManifest
+required_contents:
+  PipelineIntent:
+    name: checkout-api-observability-pipeline
+    role: reliability-critical
+    owners:
+      service: checkout-api
+      platform: observability-platform
+    signals:
+      - logs
+      - metrics
+      - traces
+    consumers:
+      - incident-response
+      - slo-analysis
+    constraints:
+      tool_agnostic: true
+      implementation_product_names_allowed: false
+    rollback:
+      strategy: revert-to-previous-pipeline-version
+      max_time: 15m
+  SignalContract:
+    logs:
+      required_fields:
+        - timestamp
+        - service.name
+        - deployment.environment
+        - severity
+        - message
+        - trace.id
+        - pipeline.version
+      correlation_keys:
+        - trace.id
+        - span.id
+        - request.id
+      sensitivity:
+        redacted_fields:
+          - request.headers.authorization
+          - payment.card.number
+      malformed_behavior:
+        action: quarantine
+  PipelineTopology:
+    sources:
+      app_runtime_logs:
+        signal: logs
+    transforms:
+      normalize_common_fields:
+        input: app_runtime_logs
+        output: normalized_logs
+      redact_sensitive_fields:
+        input: normalized_logs
+        output: redacted_logs
+    routes:
+      reliability_logs:
+        input: redacted_logs
+      quarantine:
+        input: redacted_logs
+    buffers:
+      reliability_delivery_buffer:
+        input: reliability_logs
+    sinks:
+      reliability_store:
+        input: reliability_delivery_buffer
+      quarantine_store:
+        input: quarantine
+  TransformContract:
+    redact_sensitive_fields:
+      input_contract: normalized_logs
+      output_contract: redacted_logs
+      behavior:
+        - remove payment.card.number
+        - replace request.headers.authorization with redacted marker
+      failure_behavior:
+        malformed_input: quarantine
+        missing_field: continue
+  RouteContract:
+    quarantine:
+      unmatched_behavior: retain-for-review
+      match: schema.valid == false
+  BufferDeliveryPolicy:
+    reliability_delivery_buffer:
+      delivery_guarantee: at-least-once
+      saturation_behavior: apply-backpressure-before-dropping
+      replay: supported for retained buffer window
+  SelfObservabilityPlan:
+    signals:
+      - pipeline.records.received
+      - pipeline.records.emitted
+      - pipeline.records.dropped
+      - pipeline.records.quarantined
+      - pipeline.delivery.errors
+      - pipeline.buffer.occupancy
+      - pipeline.buffer.oldest_item_age
+      - pipeline.freshness.lag
+      - pipeline.config.version
+  ValidationPlan:
+    checks:
+      - static syntax or schema validation
+      - source-to-sink topology review
+      - transform tests with representative samples
+      - malformed input quarantine test
+      - sensitivity redaction test
+      - sink unavailable failure test
+      - buffer saturation failure test
+      - self-observability signal presence
+  GeneratedArtifactManifest:
+    generated_outputs:
+      - neutral pipeline contract
+      - implementation artifact request
+      - validation evidence record
