@@ -26,27 +26,35 @@ def assert_subset(expected, actual, path)
   end
 end
 
-prompt_path = "tests/scenarios/checkout-pipeline.prompt.md"
-expected_path = "tests/scenarios/checkout-pipeline.expected.yaml"
-actual_path = "tests/scenarios/checkout-pipeline.actual.yaml"
+scenario_count = 0
 
-prompt = File.read(prompt_path)
-raise "prompt does not invoke skill" unless prompt.include?("$creating-observability-pipelines")
-raise "prompt is not tool-agnostic" unless prompt.include?("tool-agnostic")
-raise "prompt does not forbid implementation product assumptions" unless prompt.include?("Do not assume or name any specific implementation product")
+Dir["tests/scenarios/*.expected.yaml"].sort.each do |expected_path|
+  base_path = expected_path.sub(/\.expected\.yaml\z/, "")
+  prompt_path = "#{base_path}.prompt.md"
+  actual_path = "#{base_path}.actual.yaml"
 
-expected = load_yaml(expected_path)
-actual = load_yaml(actual_path).fetch("artifacts")
+  prompt = File.read(prompt_path)
+  raise "prompt does not invoke skill: #{prompt_path}" unless prompt.include?("$creating-observability-pipelines")
+  raise "prompt is not tool-agnostic: #{prompt_path}" unless prompt.include?("tool-agnostic")
+  raise "prompt does not forbid implementation product assumptions: #{prompt_path}" unless prompt.include?("Do not assume or name any specific implementation product")
 
-expected.fetch("expected_artifacts").each do |artifact|
-  raise "missing artifact #{artifact}" unless actual.key?(artifact)
+  expected = load_yaml(expected_path)
+  actual = load_yaml(actual_path).fetch("artifacts")
+
+  expected.fetch("expected_artifacts").each do |artifact|
+    raise "missing artifact #{artifact}" unless actual.key?(artifact)
+  end
+
+  assert_subset(expected.fetch("required_contents"), actual, ["artifacts"])
+
+  puts "exercise prompt: #{prompt_path}"
+  puts "expected artifacts: #{expected_path}"
+  puts "actual artifacts: #{actual_path}"
+  puts "expected contents satisfied"
+  scenario_count += 1
 end
 
-assert_subset(expected.fetch("required_contents"), actual, ["artifacts"])
-
-puts "exercise prompt: #{prompt_path}"
-puts "expected artifacts: #{expected_path}"
-puts "actual artifacts: #{actual_path}"
-puts "expected contents satisfied"
+raise "no scenarios found" if scenario_count.zero?
+puts "scenarios validated: #{scenario_count}"
 puts "exercise validation ok"
 RUBY

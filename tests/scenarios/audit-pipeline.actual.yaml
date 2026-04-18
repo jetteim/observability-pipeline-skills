@@ -1,0 +1,159 @@
+artifacts:
+  PipelineIntent:
+    name: identity-api-audit-pipeline
+    purpose: Deliver trustworthy authentication and authorization evidence for security investigation and compliance review.
+    role: audit-critical
+    owners:
+      service: identity-api
+      platform: observability-platform
+    environments:
+      - production
+    signals:
+      - logs
+      - traces
+    consumers:
+      - security-investigation
+      - compliance-review
+    constraints:
+      tool_agnostic: true
+      implementation_product_names_allowed: false
+    rollback:
+      strategy: revert-to-previous-audit-pipeline-version
+      max_time: 15m
+
+  SignalContract:
+    logs:
+      required_fields:
+        - timestamp
+        - service.name
+        - deployment.environment
+        - event.action
+        - event.result
+        - actor.id
+        - tenant.id
+        - trace.id
+        - pipeline.version
+      correlation_keys:
+        - trace.id
+        - span.id
+        - actor.id
+        - tenant.id
+      sensitivity:
+        default: restricted
+        redacted_fields:
+          - request.headers.authorization
+          - session.raw_id
+      provenance:
+        fields:
+          - pipeline.version
+          - pipeline.stage
+          - pipeline.source
+      malformed_behavior:
+        action: quarantine
+        reason: preserve investigative evidence without contaminating audit stores
+
+  PipelineTopology:
+    sources:
+      identity_runtime_audit_events:
+        signal: logs
+        owner: identity-api
+    transforms:
+      normalize_audit_fields:
+        input: identity_runtime_audit_events
+        output: normalized_audit_events
+      redact_authentication_secrets:
+        input: normalized_audit_events
+        output: redacted_audit_events
+    routes:
+      audit_events:
+        input: redacted_audit_events
+        match: event.action in ["login", "logout", "authorize", "recover_account", "change_role"]
+      quarantine:
+        input: redacted_audit_events
+        match: schema.valid == false
+    buffers:
+      audit_delivery_buffer:
+        input: audit_events
+        type: durable
+    sinks:
+      audit_store:
+        input: audit_delivery_buffer
+      quarantine_store:
+        input: quarantine
+
+  TransformContract:
+    normalize_audit_fields:
+      input_contract: identity_runtime_audit_events
+      output_contract: normalized_audit_events
+      behavior:
+        - preserve actor.id
+        - preserve tenant.id
+        - preserve event.action and event.result
+        - classify source IP without dropping original evidence before policy check
+      failure_behavior:
+        malformed_input: quarantine
+    redact_authentication_secrets:
+      input_contract: normalized_audit_events
+      output_contract: redacted_audit_events
+      behavior:
+        - replace request.headers.authorization with redacted marker
+        - hash session.raw_id before delivery
+      failure_behavior:
+        malformed_input: quarantine
+
+  RouteContract:
+    audit_events:
+      match: event.action in ["login", "logout", "authorize", "recover_account", "change_role"]
+      unmatched_behavior: continue-to-noncritical-route
+    quarantine:
+      match: schema.valid == false
+      unmatched_behavior: retain-for-review
+
+  BufferDeliveryPolicy:
+    audit_delivery_buffer:
+      delivery_guarantee: at-least-once
+      capacity: 30m of peak production traffic
+      saturation_behavior: apply-backpressure-before-dropping
+      retry:
+        timeout: 10s
+        backoff: exponential
+        max_elapsed: 20m
+      replay: supported for retained buffer window
+
+  SelfObservabilityPlan:
+    signals:
+      - pipeline.records.received
+      - pipeline.records.emitted
+      - pipeline.records.dropped
+      - pipeline.records.quarantined
+      - pipeline.delivery.errors
+      - pipeline.buffer.occupancy
+      - pipeline.buffer.oldest_item_age
+      - pipeline.freshness.lag
+      - pipeline.config.version
+    dashboards:
+      - audit pipeline trust dashboard scoped by service, tenant, action, result, and sink
+
+  ValidationPlan:
+    checks:
+      - static syntax or schema validation
+      - source-to-sink topology review
+      - authentication secret redaction test
+      - malformed input quarantine test
+      - sink unavailable failure test
+      - buffer saturation failure test
+      - self-observability signal presence
+    evidence:
+      target: identity-api audit observability pipeline contract
+      command: ./scripts/run-exercise.sh
+      output_path: tests/scenarios/audit-pipeline.actual.yaml
+      rollback_path: revert-to-previous-audit-pipeline-version
+
+  GeneratedArtifactManifest:
+    generated_outputs:
+      - neutral pipeline contract
+      - implementation artifact request
+      - validation evidence record
+    generation_gaps:
+      - choose target implementation before emitting concrete config
+      - verify target implementation can enforce secret redaction and audit retention policy

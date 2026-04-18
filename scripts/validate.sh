@@ -9,6 +9,9 @@ test -f examples/tool-agnostic-pipeline.intent.yaml
 test -f tests/scenarios/checkout-pipeline.prompt.md
 test -f tests/scenarios/checkout-pipeline.expected.yaml
 test -f tests/scenarios/checkout-pipeline.actual.yaml
+test -f tests/scenarios/audit-pipeline.prompt.md
+test -f tests/scenarios/audit-pipeline.expected.yaml
+test -f tests/scenarios/audit-pipeline.actual.yaml
 test -x scripts/run-exercise.sh
 
 ruby - <<'RUBY'
@@ -29,6 +32,8 @@ YAML.safe_load(File.read("skill/creating-observability-pipelines/agents/openai.y
 YAML.safe_load(File.read("examples/tool-agnostic-pipeline.intent.yaml"))
 YAML.safe_load(File.read("tests/scenarios/checkout-pipeline.expected.yaml"))
 YAML.safe_load(File.read("tests/scenarios/checkout-pipeline.actual.yaml"))
+YAML.safe_load(File.read("tests/scenarios/audit-pipeline.expected.yaml"))
+YAML.safe_load(File.read("tests/scenarios/audit-pipeline.actual.yaml"))
 
 puts "yaml parses"
 RUBY

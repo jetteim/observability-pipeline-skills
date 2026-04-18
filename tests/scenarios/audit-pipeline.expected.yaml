@@ -1,0 +1,110 @@
+source_prompt: tests/scenarios/audit-pipeline.prompt.md
+expected_artifacts:
+  - PipelineIntent
+  - SignalContract
+  - PipelineTopology
+  - TransformContract
+  - RouteContract
+  - BufferDeliveryPolicy
+  - SelfObservabilityPlan
+  - ValidationPlan
+  - GeneratedArtifactManifest
+required_contents:
+  PipelineIntent:
+    name: identity-api-audit-pipeline
+    role: audit-critical
+    owners:
+      service: identity-api
+      platform: observability-platform
+    signals:
+      - logs
+      - traces
+    consumers:
+      - security-investigation
+      - compliance-review
+    constraints:
+      tool_agnostic: true
+      implementation_product_names_allowed: false
+  SignalContract:
+    logs:
+      required_fields:
+        - timestamp
+        - service.name
+        - deployment.environment
+        - event.action
+        - event.result
+        - actor.id
+        - tenant.id
+        - trace.id
+        - pipeline.version
+      sensitivity:
+        redacted_fields:
+          - request.headers.authorization
+          - session.raw_id
+      malformed_behavior:
+        action: quarantine
+  PipelineTopology:
+    sources:
+      identity_runtime_audit_events:
+        signal: logs
+    transforms:
+      normalize_audit_fields:
+        input: identity_runtime_audit_events
+        output: normalized_audit_events
+      redact_authentication_secrets:
+        input: normalized_audit_events
+        output: redacted_audit_events
+    routes:
+      audit_events:
+        input: redacted_audit_events
+      quarantine:
+        input: redacted_audit_events
+    buffers:
+      audit_delivery_buffer:
+        input: audit_events
+    sinks:
+      audit_store:
+        input: audit_delivery_buffer
+      quarantine_store:
+        input: quarantine
+  TransformContract:
+    redact_authentication_secrets:
+      behavior:
+        - replace request.headers.authorization with redacted marker
+        - hash session.raw_id before delivery
+      failure_behavior:
+        malformed_input: quarantine
+  RouteContract:
+    quarantine:
+      unmatched_behavior: retain-for-review
+      match: schema.valid == false
+  BufferDeliveryPolicy:
+    audit_delivery_buffer:
+      delivery_guarantee: at-least-once
+      saturation_behavior: apply-backpressure-before-dropping
+      replay: supported for retained buffer window
+  SelfObservabilityPlan:
+    signals:
+      - pipeline.records.received
+      - pipeline.records.emitted
+      - pipeline.records.dropped
+      - pipeline.records.quarantined
+      - pipeline.delivery.errors
+      - pipeline.buffer.occupancy
+      - pipeline.buffer.oldest_item_age
+      - pipeline.freshness.lag
+      - pipeline.config.version
+  ValidationPlan:
+    checks:
+      - static syntax or schema validation
+      - source-to-sink topology review
+      - authentication secret redaction test
+      - malformed input quarantine test
+      - sink unavailable failure test
+      - buffer saturation failure test
+      - self-observability signal presence
+  GeneratedArtifactManifest:
+    generated_outputs:
+      - neutral pipeline contract
+      - implementation artifact request
+      - validation evidence record
