@@ -1,0 +1,82 @@
+pipeline_intent:
+  name: checkout-observability-pipeline
+  purpose: Normalize checkout telemetry for incident response and reliability analysis.
+  role: reliability-critical
+  owners:
+    service: checkout
+    platform: observability-platform
+  signals:
+    - logs
+    - metrics
+    - traces
+  rollback:
+    strategy: revert-to-previous-pipeline-version
+    max_time: 15m
+
+signal_contracts:
+  logs:
+    required_fields:
+      - timestamp
+      - service.name
+      - deployment.environment
+      - severity
+      - message
+      - trace.id
+    sensitivity:
+      redacted_fields:
+        - request.headers.authorization
+        - payment.card.number
+    malformed_behavior:
+      action: quarantine
+
+topology:
+  sources:
+    app_runtime_logs:
+      signal: logs
+      expected_volume: 2500 events/min
+  transforms:
+    normalize_common_fields:
+      input: app_runtime_logs
+      output: normalized_logs
+    redact_sensitive_fields:
+      input: normalized_logs
+      output: redacted_logs
+  routes:
+    reliability_logs:
+      input: redacted_logs
+      match: severity in ["error", "warn"] or has(trace.id)
+    quarantine:
+      input: redacted_logs
+      match: schema.valid == false
+  buffers:
+    reliability_delivery_buffer:
+      input: reliability_logs
+      delivery_guarantee: at-least-once
+      saturation_behavior: apply-backpressure-before-dropping
+  sinks:
+    reliability_store:
+      input: reliability_delivery_buffer
+    quarantine_store:
+      input: quarantine
+
+self_observability:
+  signals:
+    - pipeline.records.received
+    - pipeline.records.emitted
+    - pipeline.records.dropped
+    - pipeline.records.quarantined
+    - pipeline.delivery.errors
+    - pipeline.buffer.occupancy
+    - pipeline.buffer.oldest_item_age
+    - pipeline.freshness.lag
+    - pipeline.config.version
+
+validation:
+  static_validation: required
+  transform_tests: required
+  replay_tests: required for reliability-critical pipelines
+  failure_tests:
+    - sink unavailable
+    - buffer saturated
+    - malformed source event
+    - sensitivity field present
