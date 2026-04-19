@@ -1,0 +1,117 @@
+artifacts:
+  PipelineProviderAdapterManifest:
+    source_pipeline_artifacts:
+      - PipelineIntent
+      - SignalContract
+      - PipelineTopology
+      - TransformContract
+      - RouteContract
+      - BufferDeliveryPolicy
+      - SelfObservabilityPlan
+    provider_targets:
+      - datadog-observability-pipelines
+      - elastic-ecosystem
+    generated_pipeline_artifacts:
+      - datadog observability pipeline implementation request
+      - elastic ingest and logstash implementation request
+      - provider validation commands
+      - provider gap report
+    owned_by_pipeline_skill:
+      - source-to-sink pipeline mapping
+      - redaction and transform projection
+      - route and sink mapping
+      - buffer, retry, and delivery gap reporting
+      - malformed input quarantine behavior
+      - pipeline self-observability signal mapping
+    delegated_to_observability_engineering:
+      - SLOs
+      - dashboards
+      - monitors
+      - backend observability packs
+      - service catalog entries
+    rules:
+      provider_artifacts_are_generated_outputs: true
+      no_secrets_in_generated_artifacts: true
+      provider_gaps_are_explicit: true
+      slo_dashboard_monitor_generation_delegated_to_observability_engineering: true
+    safety:
+      target: checkout-api provider pipeline adapters
+      blast_radius: generated pipeline files only; no remote provider apply
+      rollback_path: revert generated provider pipeline commit and restore previous pipeline version if applied
+      review_gate: run provider syntax/schema validation before any apply
+
+  DatadogObservabilityPipelinesAdapter:
+    provider_target: datadog-observability-pipelines
+    source_contract_mapping:
+      PipelineTopology.sources: intake sources
+      TransformContract: parser, remap, redaction, and sampling stages
+      RouteContract: route and sink branching
+      BufferDeliveryPolicy: buffer and retry settings where supported
+      SelfObservabilityPlan: pipeline health metrics and logs
+    generated_outputs:
+      - source-to-sink pipeline mapping
+      - redaction transform mapping
+      - route and sink mapping
+      - quarantine path mapping
+      - provider validation request
+    gaps:
+      - Terraform generation requires verified datadog_observability_pipeline provider schema before apply.
+      - Delivery semantics must be checked against the deployed Observability Pipelines worker configuration before claiming at-least-once behavior.
+    validation_commands:
+      - validate Datadog Observability Pipelines config with provider-supported schema tooling
+      - replay representative and malformed checkout-api events through a non-production pipeline
+      - verify redacted authorization and payment fields never reach primary sinks
+
+  ElasticPipelineAdapter:
+    provider_target: elastic-ecosystem
+    source_contract_mapping:
+      PipelineTopology.sources: Elastic Agent or Logstash inputs
+      TransformContract: ingest processors or Logstash filters
+      RouteContract: ingest on_failure branches, Logstash conditionals, or dedicated output routing
+      BufferDeliveryPolicy: Logstash persistent queue or explicit provider gap
+      SelfObservabilityPlan: Elastic Agent, Logstash, and ingest pipeline health signals
+    generated_outputs:
+      - elasticstack_elasticsearch_ingest_pipeline
+      - logstash pipeline config
+      - ingest simulate request
+    gaps:
+      - Elasticsearch ingest pipelines do not provide durable replay or at-least-once delivery by themselves.
+      - Persistent buffering requires Logstash persistent queues or another queueing layer outside ingest pipelines.
+    validation_commands:
+      - terraform validate generated elasticstack_elasticsearch_ingest_pipeline config when Terraform is emitted
+      - run Elasticsearch ingest pipeline _simulate with representative checkout-api logs
+      - run malformed input and redaction samples through non-production Logstash or ingest pipeline config
+
+  ProviderPipelineGeneratedArtifacts:
+    generated_outputs:
+      - neutral contract reference bundle
+      - Datadog pipeline adapter manifest
+      - Elastic pipeline adapter manifest
+      - provider gap report
+      - provider validation plan
+    not_generated:
+      - SLOs
+      - dashboards
+      - monitors
+      - service catalog entries
+
+  ProviderPipelineValidationPlan:
+    target: checkout-api provider pipeline adapters
+    blast_radius: generated pipeline files only; no remote provider apply
+    rollback_path: revert generated provider pipeline commit and restore previous pipeline version if applied
+    checks:
+      - source-to-sink lineage preserved
+      - redaction behavior preserved
+      - malformed input quarantine preserved
+      - delivery and buffer gaps explicit
+      - provider syntax/schema validation commands listed
+      - no secrets included in generated artifacts
+      - SLO/dashboard/monitor generation delegated to observability-engineering
+
+  PipelineProviderGenerationEvidence:
+    command: ./scripts/run-exercise.sh
+    output_path: tests/scenarios/provider-pipeline-adapters.actual.yaml
+    validation_scope:
+      - scenario artifact subset check
+      - provider adapter reference grep checks
+      - YAML parse validation

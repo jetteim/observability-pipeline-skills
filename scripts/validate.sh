@@ -5,6 +5,7 @@ test -f skill/creating-observability-pipelines/SKILL.md
 test -f skill/creating-observability-pipelines/agents/openai.yaml
 test -f skill/creating-observability-pipelines/references/tool-agnostic-concepts.md
 test -f skill/creating-observability-pipelines/references/pipeline-contract.md
+test -f skill/creating-observability-pipelines/references/provider-pipeline-adapters.md
 test -f examples/tool-agnostic-pipeline.intent.yaml
 test -f tests/scenarios/checkout-pipeline.prompt.md
 test -f tests/scenarios/checkout-pipeline.expected.yaml
@@ -12,6 +13,9 @@ test -f tests/scenarios/checkout-pipeline.actual.yaml
 test -f tests/scenarios/audit-pipeline.prompt.md
 test -f tests/scenarios/audit-pipeline.expected.yaml
 test -f tests/scenarios/audit-pipeline.actual.yaml
+test -f tests/scenarios/provider-pipeline-adapters.prompt.md
+test -f tests/scenarios/provider-pipeline-adapters.expected.yaml
+test -f tests/scenarios/provider-pipeline-adapters.actual.yaml
 test -x scripts/run-exercise.sh
 
 ruby - <<'RUBY'
@@ -34,6 +38,8 @@ YAML.safe_load(File.read("tests/scenarios/checkout-pipeline.expected.yaml"))
 YAML.safe_load(File.read("tests/scenarios/checkout-pipeline.actual.yaml"))
 YAML.safe_load(File.read("tests/scenarios/audit-pipeline.expected.yaml"))
 YAML.safe_load(File.read("tests/scenarios/audit-pipeline.actual.yaml"))
+YAML.safe_load(File.read("tests/scenarios/provider-pipeline-adapters.expected.yaml"))
+YAML.safe_load(File.read("tests/scenarios/provider-pipeline-adapters.actual.yaml"))
 
 puts "yaml parses"
 RUBY
@@ -45,6 +51,9 @@ grep -qi 'tool-agnostic' README.md
 grep -qi 'tool-agnostic' skill/creating-observability-pipelines/references/tool-agnostic-concepts.md
 grep -q 'PipelineIntent' skill/creating-observability-pipelines/references/pipeline-contract.md
 grep -q 'rollback_path' skill/creating-observability-pipelines/references/pipeline-contract.md
+grep -q 'PipelineProviderAdapterManifest' skill/creating-observability-pipelines/references/provider-pipeline-adapters.md
+grep -q 'datadog-observability-pipelines' skill/creating-observability-pipelines/references/provider-pipeline-adapters.md
+grep -q 'elasticstack_elasticsearch_ingest_pipeline' skill/creating-observability-pipelines/references/provider-pipeline-adapters.md
 
 ./scripts/run-exercise.sh
 

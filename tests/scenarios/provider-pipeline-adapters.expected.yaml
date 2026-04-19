@@ -1,0 +1,57 @@
+source_prompt: tests/scenarios/provider-pipeline-adapters.prompt.md
+expected_artifacts:
+  - PipelineProviderAdapterManifest
+  - DatadogObservabilityPipelinesAdapter
+  - ElasticPipelineAdapter
+  - ProviderPipelineGeneratedArtifacts
+  - ProviderPipelineValidationPlan
+  - PipelineProviderGenerationEvidence
+required_contents:
+  PipelineProviderAdapterManifest:
+    source_pipeline_artifacts:
+      - PipelineIntent
+      - SignalContract
+      - PipelineTopology
+      - TransformContract
+      - RouteContract
+      - BufferDeliveryPolicy
+      - SelfObservabilityPlan
+    provider_targets:
+      - datadog-observability-pipelines
+      - elastic-ecosystem
+    rules:
+      provider_artifacts_are_generated_outputs: true
+      no_secrets_in_generated_artifacts: true
+      provider_gaps_are_explicit: true
+      slo_dashboard_monitor_generation_delegated_to_observability_engineering: true
+  DatadogObservabilityPipelinesAdapter:
+    provider_target: datadog-observability-pipelines
+    generated_outputs:
+      - source-to-sink pipeline mapping
+      - redaction transform mapping
+      - route and sink mapping
+      - quarantine path mapping
+      - provider validation request
+    gaps:
+      - Terraform generation requires verified datadog_observability_pipeline provider schema before apply.
+  ElasticPipelineAdapter:
+    provider_target: elastic-ecosystem
+    generated_outputs:
+      - elasticstack_elasticsearch_ingest_pipeline
+      - logstash pipeline config
+      - ingest simulate request
+    gaps:
+      - Elasticsearch ingest pipelines do not provide durable replay or at-least-once delivery by themselves.
+  ProviderPipelineValidationPlan:
+    target: checkout-api provider pipeline adapters
+    blast_radius: generated pipeline files only; no remote provider apply
+    rollback_path: revert generated provider pipeline commit and restore previous pipeline version if applied
+    checks:
+      - source-to-sink lineage preserved
+      - redaction behavior preserved
+      - malformed input quarantine preserved
+      - delivery and buffer gaps explicit
+      - provider syntax/schema validation commands listed
+  PipelineProviderGenerationEvidence:
+    command: ./scripts/run-exercise.sh
+    output_path: tests/scenarios/provider-pipeline-adapters.actual.yaml
