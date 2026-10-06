@@ -10,7 +10,7 @@ Tool-agnostic skills for creating observability pipelines from intent, contracts
 
 This repository is a companion to the `observability-engineering` skill.
 
-Use `observability-engineering` when the work involves SLOs, SLIs, semantic conventions, alerts, dashboards, backend resources, or platform observability intent. Use `creating-observability-pipelines` when the work is specifically about telemetry pipeline topology, component contracts, delivery guarantees, validation, and pipeline self-observability.
+Use `reliability-engineering` to choose SLIs, SLO objectives and error-budget policy. Use `observability-engineering` for reviewed telemetry/query bindings, semantic conventions, alerts, dashboards and backend projections. Use `creating-observability-pipelines` for topology, component contracts, delivery guarantees, validation and pipeline self-observability.
 
 Pipeline implementation files are treated as generated outputs. The skill intentionally starts from a neutral model so it can target any collector, routing layer, streaming system, or backend integration later.
 
@@ -52,3 +52,7 @@ Run the exercise directly:
 ```bash
 ./scripts/run-exercise.sh
 ```
+
+## Skill evaluation
+
+See [skill-evaluation.md](docs/skill-evaluation.md) for static fixture limits, synthetic scenarios and the opt-in fresh-run adapter. Offline runner tests are simulations; model-backed results are reported separately.

@@ -30,7 +30,7 @@ end
 
 skill = frontmatter("skill/creating-observability-pipelines/SKILL.md")
 raise "unexpected skill name" unless skill["name"] == "creating-observability-pipelines"
-raise "description missing trigger" unless skill["description"].include?("Use when creating")
+raise "description empty" if skill["description"].to_s.strip.empty?
 
 YAML.safe_load(File.read("skill/creating-observability-pipelines/agents/openai.yaml"))
 YAML.safe_load(File.read("examples/tool-agnostic-pipeline.intent.yaml"))
@@ -44,9 +44,6 @@ YAML.safe_load(File.read("tests/scenarios/provider-pipeline-adapters.actual.yaml
 puts "yaml parses"
 RUBY
 
-grep -q '\$observability-engineering' skill/creating-observability-pipelines/SKILL.md
-grep -q 'source-to-sink lineage' skill/creating-observability-pipelines/SKILL.md
-grep -q 'SelfObservabilityPlan' skill/creating-observability-pipelines/SKILL.md
 grep -qi 'tool-agnostic' README.md
 grep -qi 'tool-agnostic' skill/creating-observability-pipelines/references/tool-agnostic-concepts.md
 grep -q 'PipelineIntent' skill/creating-observability-pipelines/references/pipeline-contract.md
@@ -56,5 +53,7 @@ grep -q 'datadog-observability-pipelines' skill/creating-observability-pipelines
 grep -q 'elasticstack_elasticsearch_ingest_pipeline' skill/creating-observability-pipelines/references/provider-pipeline-adapters.md
 
 ./scripts/run-exercise.sh
+python3 scripts/test-skill-evaluator.py
+python3 scripts/check-skill-package.py
 
 echo "validation ok"

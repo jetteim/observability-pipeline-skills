@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Saved-output fixture contract only; no model is invoked.
+echo '[fixtures] Saved-output contract comparison; no agent invoked'
 
 ruby - <<'RUBY'
 require "yaml"

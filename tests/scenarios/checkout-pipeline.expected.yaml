@@ -34,7 +34,7 @@ required_contents:
       required_fields:
         - timestamp
         - service.name
-        - deployment.environment
+        - deployment.environment.name
         - severity
         - message
         - trace.id

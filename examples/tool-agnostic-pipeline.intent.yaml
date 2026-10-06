@@ -1,3 +1,6 @@
+# Semantic conventions: select and record the target emitter's supported version/schema before generation.
+# deployment.environment.name is stable; service.owner is an organization extension.
+# Existing emitters require an explicit legacy field mapping/migration, not an implied live change.
 pipeline_intent:
   name: checkout-observability-pipeline
   purpose: Normalize checkout telemetry for incident response and reliability analysis.
@@ -18,7 +21,7 @@ signal_contracts:
     required_fields:
       - timestamp
       - service.name
-      - deployment.environment
+      - deployment.environment.name
       - severity
       - message
       - trace.id

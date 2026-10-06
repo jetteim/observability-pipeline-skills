@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "skills": [
+    "skill/creating-observability-pipelines"
+  ],
+  "cases": [
+    {
+      "id": "direct-pipeline",
+      "prompt": "Use $creating-observability-pipelines to define a source-to-sink collector contract.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [
+          "creating-observability-pipelines"
+        ],
+        "exclude": [],
+        "artifact": {
+          "route": "pipeline"
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "indirect-outage",
+      "prompt": "Logs are lost during sink outages. Design buffering, acknowledgement and replay policy.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [
+          "creating-observability-pipelines"
+        ],
+        "exclude": [],
+        "artifact": {
+          "status": "bounded"
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "slo-choice",
+      "prompt": "Select customer availability objectives and error budget.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [],
+        "exclude": [
+          "creating-observability-pipelines"
+        ],
+        "artifact": {
+          "route": "reliability"
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "missing-runtime",
+      "prompt": "No collector executable exists. Generate the contract and label runtime checks unexecuted.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [
+          "creating-observability-pipelines"
+        ],
+        "exclude": [],
+        "artifact": {
+          "runtime_verified": false
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "unsupported-guarantee",
+      "prompt": "The sink does not support deduplication. Assess an exactly-once requirement without inventing guarantees.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [
+          "creating-observability-pipelines"
+        ],
+        "exclude": [],
+        "artifact": {
+          "status": "guarantee-gap"
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "user-scope",
+      "prompt": "Review the current buffering policy only; do not migrate the collector.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [
+          "creating-observability-pipelines"
+        ],
+        "exclude": [],
+        "artifact": {
+          "scope": "read-only"
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "malformed-contract",
+      "prompt": "The source schema and redaction owner are absent. State unresolved contract gaps.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [
+          "creating-observability-pipelines"
+        ],
+        "exclude": [],
+        "artifact": {
+          "status": "contract-gap"
+        },
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    },
+    {
+      "id": "nontrigger",
+      "prompt": "Rename a local image file.",
+      "fixtures": {},
+      "available_tools": [],
+      "expect": {
+        "select": [],
+        "exclude": [
+          "creating-observability-pipelines"
+        ],
+        "artifact": {},
+        "max_writes": 0,
+        "require_operations": [],
+        "forbid_operations": []
+      }
+    }
+  ]
+}

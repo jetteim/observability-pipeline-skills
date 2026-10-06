@@ -26,7 +26,7 @@ artifacts:
       required_fields:
         - timestamp
         - service.name
-        - deployment.environment
+        - deployment.environment.name
         - event.action
         - event.result
         - actor.id
